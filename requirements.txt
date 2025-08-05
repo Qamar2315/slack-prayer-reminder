@@ -1,4 +1,5 @@
 requests
 schedule
 google-generativeai
-python-dotenv 
+python-dotenv
+pytz 

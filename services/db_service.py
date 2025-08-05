@@ -3,11 +3,14 @@ import json
 import random
 from datetime import datetime, timedelta
 import config
+import pytz  # Import the timezone library
 
 class DatabaseService:
     def __init__(self, db_file, quran_ar_file, quran_ur_file):
         self.db_file = db_file
         self.conn = sqlite3.connect(self.db_file, check_same_thread=False)
+        # Create a timezone object from the configuration
+        self.local_tz = pytz.timezone(config.TIMEZONE)
         self._load_quran(quran_ar_file, quran_ur_file)
 
     def _load_quran(self, ar_file, ur_file):
@@ -40,9 +43,7 @@ class DatabaseService:
         print("Cleared previous day's prayer data.")
         
         for prayer in config.PRAYERS_IN_ORDER:
-            # Get the message for this prayer, fallback to default if missing
             message = messages.get(prayer, config.DEFAULT_MESSAGES.get(prayer, f"Time for {prayer} prayer."))
-            
             cursor.execute('''
                 INSERT INTO daily_prayers (prayer_name, prayer_time, reminder_message, reminder_sent)
                 VALUES (?, ?, ?, 0)
@@ -54,8 +55,11 @@ class DatabaseService:
     def get_prayers_to_remind(self):
         """Fetches prayers that are due for a reminder and haven't been sent."""
         cursor = self.conn.cursor()
-        # Calculate the time window for reminders
-        now = datetime.now()
+        
+        # --- FIX 1: USE LOCAL TIMEZONE FOR COMPARISON ---
+        # Get the current time in the bot's configured local timezone
+        now = datetime.now(self.local_tz)
+        
         reminder_start_time = (now + timedelta(minutes=config.REMINDER_LEAD_TIME_MINUTES)).strftime("%H:%M")
         
         cursor.execute('''
@@ -64,7 +68,6 @@ class DatabaseService:
         ''', (reminder_start_time,))
         
         prayers = cursor.fetchall()
-        # Return as a list of dicts for easier access
         return [{"name": p[0], "time": p[1], "message": p[2]} for p in prayers]
 
     def mark_as_sent(self, prayer_name):
@@ -75,21 +78,24 @@ class DatabaseService:
         print(f"Marked {prayer_name} reminder as sent.")
 
     def get_next_prayer(self, current_prayer_name):
-        """Finds the next prayer in the sequence."""
+        """Finds the next prayer in the sequence, correctly handling the end of the day."""
+        # --- FIX 2: HANDLE THE LAST PRAYER IN THE CONFIGURED LIST ---
+        # If the current prayer is the last one in our list, the next is always Fajr.
+        if current_prayer_name == config.PRAYERS_IN_ORDER[-1]:
+            return {"name": "Fajr", "time": "tomorrow"}
+        
         try:
             current_index = config.PRAYERS_IN_ORDER.index(current_prayer_name)
-            next_index = (current_index + 1) % len(config.PRAYERS_IN_ORDER)
-            next_prayer_name = config.PRAYERS_IN_ORDER[next_index]
+            # This is safe now because we already handled the last prayer case.
+            next_prayer_name = config.PRAYERS_IN_ORDER[current_index + 1]
 
             cursor = self.conn.cursor()
             cursor.execute("SELECT prayer_time FROM daily_prayers WHERE prayer_name = ?", (next_prayer_name,))
             result = cursor.fetchone()
             if result:
                 return {"name": next_prayer_name, "time": result[0]}
-            # For Isha, the next prayer is Fajr "tomorrow"
-            if current_prayer_name == "Isha":
-                 return {"name": "Fajr", "time": "tomorrow"}
         except (ValueError, IndexError):
+            # This will now only catch genuine errors, like a misconfigured list.
             return None
         return None
 

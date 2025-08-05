@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# --- Timezone Configuration ---
+TIMEZONE = "Asia/Karachi" # For Pakistan Standard Time (PKT)
+
 # --- Slack Configuration ---
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_CHANNEL_ID = "C099J0CK77S" # Your channel ID
