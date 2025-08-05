@@ -18,8 +18,8 @@ METHOD = 1 # University of Islamic Sciences, Karachi
 
 # --- Bot Configuration ---
 # The order is important for determining the "next" prayer
-PRAYERS_IN_ORDER = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]
-REMINDER_LEAD_TIME_MINUTES = 10 # Send reminder 10 minutes before prayer
+PRAYERS_IN_ORDER = ["Asr", "Maghrib", "Isha"]
+REMINDER_LEAD_TIME_MINUTES = 3 # Send reminder 10 minutes before prayer
 DATABASE_FILE = "prayer_times.db"
 QURAN_ARABIC_FILE = "data/quran.json"
 QURAN_URDU_FILE = "data/ur.json"
