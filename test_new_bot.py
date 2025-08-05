@@ -63,6 +63,9 @@ def test_database_service():
             print(f"   - Quran data loaded: {len(db.quran_arabic)} chapters")
             print(f"   - Sample verse: {verse['chapter']}:{verse['verse']}")
         
+        # Close the database connection before cleanup
+        db.conn.close()
+        
         # Clean up test database
         os.remove("test_prayer_times.db")
         return True
@@ -113,6 +116,9 @@ def test_slack_service():
         print("✅ Slack service structure working")
         print(f"   - Channel ID: {config.SLACK_CHANNEL_ID}")
         print(f"   - Sample verse ready: {verse['chapter']}:{verse['verse']}")
+        
+        # Close the database connection before cleanup
+        db.conn.close()
         
         # Clean up
         os.remove("test_slack.db")

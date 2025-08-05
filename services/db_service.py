@@ -38,11 +38,16 @@ class DatabaseService:
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM daily_prayers")
         print("Cleared previous day's prayer data.")
+        
         for prayer in config.PRAYERS_IN_ORDER:
+            # Get the message for this prayer, fallback to default if missing
+            message = messages.get(prayer, config.DEFAULT_MESSAGES.get(prayer, f"Time for {prayer} prayer."))
+            
             cursor.execute('''
                 INSERT INTO daily_prayers (prayer_name, prayer_time, reminder_message, reminder_sent)
                 VALUES (?, ?, ?, 0)
-            ''', (prayer, timings[prayer], messages[prayer]))
+            ''', (prayer, timings[prayer], message))
+        
         self.conn.commit()
         print("Saved new prayer times and messages for the day.")
 
@@ -101,4 +106,16 @@ class DatabaseService:
             "verse": arabic_verse['verse'],
             "arabic_text": arabic_verse['text'],
             "urdu_text": urdu_verse['text']
-        } 
+        }
+
+    def has_today_data(self):
+        """Check if we have prayer data for today."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM daily_prayers")
+        count = cursor.fetchone()[0]
+        return count > 0
+
+    def initialize_with_defaults(self, timings):
+        """Initialize the database with prayer times and default messages."""
+        print("Initializing database with prayer times and default messages...")
+        self.clear_and_save_prayers(timings, config.DEFAULT_MESSAGES) 

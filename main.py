@@ -25,16 +25,29 @@ def daily_setup_job():
         print("Halting daily setup: Could not fetch prayer times.")
         return
 
-    # 2. Generate motivational messages
+    # 2. Generate motivational messages (with fallback to defaults)
     messages = gemini_service.generate_motivational_messages()
     if not messages:
-        print("Halting daily setup: Could not generate motivational messages.")
+        print("Error: No messages available. This should not happen with fallback defaults.")
         return
 
     # 3. Save everything to the database
     db.clear_and_save_prayers(timings, messages)
     print("Daily setup job completed successfully.")
     print("="*50 + "\n")
+
+def initialize_if_needed():
+    """
+    Initialize the database with prayer times and default messages if no data exists.
+    """
+    if not db.has_today_data():
+        print("No prayer data found for today. Initializing with defaults...")
+        timings = aladhan_service.fetch_prayer_times()
+        if timings:
+            db.initialize_with_defaults(timings)
+            print("Database initialized with prayer times and default messages.")
+        else:
+            print("Could not fetch prayer times for initialization.")
 
 
 def check_and_send_reminders_job():
@@ -78,6 +91,9 @@ def main():
     
     # Initialize the database schema if it doesn't exist
     db.init_db()
+
+    # Initialize with defaults if no data exists
+    initialize_if_needed()
 
     # Run the setup job once on startup to get today's data immediately
     daily_setup_job()

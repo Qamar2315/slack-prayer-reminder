@@ -4,7 +4,7 @@ import time
 import config
 
 genai.configure(api_key=config.GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-2.5-flash-lite')
 
 def generate_motivational_messages():
     """Generates a motivational message for each prayer using Gemini AI."""
@@ -45,4 +45,5 @@ def generate_motivational_messages():
             time.sleep(5) # Wait before retrying
             
     print("Failed to generate motivational messages after 3 attempts.")
-    return None 
+    print("Using default messages as fallback.")
+    return config.DEFAULT_MESSAGES 
