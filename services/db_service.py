@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import random
+import logging
 from datetime import datetime, timedelta
 import config
 import pytz  # Import the timezone library
@@ -11,16 +12,52 @@ class DatabaseService:
         self.conn = sqlite3.connect(self.db_file, check_same_thread=False)
         # Create a timezone object from the configuration
         self.local_tz = pytz.timezone(config.TIMEZONE)
+        self.log = logging.getLogger(__name__)
         self._load_quran(quran_ar_file, quran_ur_file)
 
     def _load_quran(self, ar_file, ur_file):
         """Loads Quran JSON files into memory."""
-        print("Loading Quran data...")
+        self.log.info("Loading Quran data...")
         with open(ar_file, 'r', encoding='utf-8') as f:
             self.quran_arabic = json.load(f)
         with open(ur_file, 'r', encoding='utf-8') as f:
             self.quran_urdu = json.load(f)
-        print("Quran data loaded successfully.")
+        self.log.info("Quran data loaded successfully.")
+
+    def _round_to_quarter_hour(self, time_str):
+        """Round time to nearest quarter hour (00, 15, 30, 45 minutes)."""
+        try:
+            # Parse the time string (e.g., "09:05")
+            time_obj = datetime.strptime(time_str, "%H:%M")
+            
+            # Get total minutes since midnight
+            total_minutes = time_obj.hour * 60 + time_obj.minute
+            
+            # Round to nearest quarter hour (15 minutes)
+            rounded_minutes = round(total_minutes / 15) * 15
+            
+            # Convert back to hours and minutes
+            hours = rounded_minutes // 60
+            minutes = rounded_minutes % 60
+            
+            # Format back to HH:MM
+            return f"{hours:02d}:{minutes:02d}"
+        except ValueError:
+            return time_str
+
+    def _apply_quarter_hour_rounding(self, timings):
+        """Apply quarter-hour rounding to Asr and Isha prayer times."""
+        rounded_timings = timings.copy()
+        
+        # Apply rounding only to Asr and Isha
+        for prayer in ["Asr", "Isha"]:
+            if prayer in rounded_timings:
+                original_time = rounded_timings[prayer]
+                rounded_time = self._round_to_quarter_hour(original_time)
+                rounded_timings[prayer] = rounded_time
+                self.log.info(f"Rounded {prayer} time: {original_time} → {rounded_time}")
+        
+        return rounded_timings
 
     def init_db(self):
         """Initializes the database table."""
@@ -34,23 +71,26 @@ class DatabaseService:
             )
         ''')
         self.conn.commit()
-        print("Database initialized.")
+        self.log.info("Database initialized.")
 
     def clear_and_save_prayers(self, timings, messages):
         """Clears old data and saves new daily prayer times and messages."""
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM daily_prayers")
-        print("Cleared previous day's prayer data.")
+        self.log.info("Cleared previous day's prayer data.")
+        
+        # Apply quarter-hour rounding to Asr and Isha
+        rounded_timings = self._apply_quarter_hour_rounding(timings)
         
         for prayer in config.PRAYERS_IN_ORDER:
             message = messages.get(prayer, config.DEFAULT_MESSAGES.get(prayer, f"Time for {prayer} prayer."))
             cursor.execute('''
                 INSERT INTO daily_prayers (prayer_name, prayer_time, reminder_message, reminder_sent)
                 VALUES (?, ?, ?, 0)
-            ''', (prayer, timings[prayer], message))
+            ''', (prayer, rounded_timings[prayer], message))
         
         self.conn.commit()
-        print("Saved new prayer times and messages for the day.")
+        self.log.info("Saved new prayer times and messages for the day.")
 
     def get_prayers_to_remind(self):
         """Fetches prayers that are due for a reminder and haven't been sent."""
@@ -75,7 +115,7 @@ class DatabaseService:
         cursor = self.conn.cursor()
         cursor.execute("UPDATE daily_prayers SET reminder_sent = 1 WHERE prayer_name = ?", (prayer_name,))
         self.conn.commit()
-        print(f"Marked {prayer_name} reminder as sent.")
+        self.log.info(f"Marked {prayer_name} reminder as sent.")
 
     def get_next_prayer(self, current_prayer_name):
         """Finds the next prayer in the sequence, correctly handling the end of the day."""
@@ -123,5 +163,5 @@ class DatabaseService:
 
     def initialize_with_defaults(self, timings):
         """Initialize the database with prayer times and default messages."""
-        print("Initializing database with prayer times and default messages...")
+        self.log.info("Initializing database with prayer times and default messages...")
         self.clear_and_save_prayers(timings, config.DEFAULT_MESSAGES) 

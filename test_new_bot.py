@@ -208,6 +208,126 @@ def display_asr_comparison():
         print(f"❌ Comparison error: {e}")
         return False
 
+def round_to_quarter_hour(time_str):
+    """Round time to nearest quarter hour (00, 15, 30, 45 minutes)."""
+    try:
+        # Parse the time string (e.g., "09:05")
+        time_obj = datetime.strptime(time_str, "%H:%M")
+        
+        # Get total minutes since midnight
+        total_minutes = time_obj.hour * 60 + time_obj.minute
+        
+        # Round to nearest quarter hour (15 minutes)
+        rounded_minutes = round(total_minutes / 15) * 15
+        
+        # Convert back to hours and minutes
+        hours = rounded_minutes // 60
+        minutes = rounded_minutes % 60
+        
+        # Format back to HH:MM
+        return f"{hours:02d}:{minutes:02d}"
+    except ValueError:
+        return time_str
+
+def test_quarter_hour_rounding():
+    """Test quarter-hour rounding for Asr and Isha prayer times."""
+    print("\n⏰ QUARTER-HOUR ROUNDING TEST (Asr & Isha)")
+    print("=" * 70)
+    
+    try:
+        import config
+        from services.aladhan_service import fetch_prayer_times
+        
+        print("📡 Fetching prayer times from AlAdhan API...")
+        timings = fetch_prayer_times()
+        
+        if not timings:
+            print("❌ Failed to fetch prayer times")
+            return False
+        
+        print("✅ Prayer times fetched successfully!")
+        print()
+        
+        # Test quarter-hour rounding
+        print("🔄 QUARTER-HOUR ROUNDING:")
+        print("-" * 60)
+        print(f"{'Prayer':<8} | {'Original':<10} | {'Rounded':<10} | {'12-Hour'}")
+        print("-" * 60)
+        
+        # Test with actual prayer times
+        for prayer in ["Asr", "Isha"]:
+            if prayer in timings:
+                original_time = timings[prayer]
+                rounded_time = round_to_quarter_hour(original_time)
+                rounded_12hr = convert_to_12_hour_format(rounded_time)
+                
+                print(f"{prayer:8} | {original_time:<10} | {rounded_time:<10} | {rounded_12hr}")
+        
+        print("-" * 60)
+        print()
+        
+        # Test with sample times to show the rounding logic
+        print("🧪 SAMPLE ROUNDING EXAMPLES:")
+        print("-" * 60)
+        print(f"{'Original':<10} | {'Rounded':<10} | {'12-Hour':<10} | {'Logic'}")
+        print("-" * 60)
+        
+        sample_times = [
+            "09:05",   # Should round to 09:00
+            "09:07",   # Should round to 09:00
+            "09:08",   # Should round to 09:15
+            "09:22",   # Should round to 09:15
+            "09:23",   # Should round to 09:30
+            "09:37",   # Should round to 09:30
+            "09:38",   # Should round to 09:45
+            "09:52",   # Should round to 09:45
+            "09:53",   # Should round to 10:00
+            "15:44",   # Should round to 15:45
+            "15:46",   # Should round to 15:45
+            "15:47",   # Should round to 15:45
+            "15:48",   # Should round to 15:45
+            "15:49",   # Should round to 15:45
+            "15:50",   # Should round to 15:45
+            "15:51",   # Should round to 15:45
+            "15:52",   # Should round to 15:45
+            "15:53",   # Should round to 16:00
+        ]
+        
+        for time_str in sample_times:
+            rounded = round_to_quarter_hour(time_str)
+            rounded_12hr = convert_to_12_hour_format(rounded)
+            
+            # Explain the logic
+            time_obj = datetime.strptime(time_str, "%H:%M")
+            total_minutes = time_obj.hour * 60 + time_obj.minute
+            quarter = round(total_minutes / 15)
+            logic = f"({total_minutes}min → {quarter} quarters)"
+            
+            print(f"{time_str:<10} | {rounded:<10} | {rounded_12hr:<10} | {logic}")
+        
+        print("-" * 60)
+        print()
+        
+        # Show what would be saved to database
+        print("💾 DATABASE SAVE PREVIEW:")
+        print("-" * 50)
+        for prayer in ["Asr", "Isha"]:
+            if prayer in timings:
+                original_time = timings[prayer]
+                rounded_time = round_to_quarter_hour(original_time)
+                rounded_12hr = convert_to_12_hour_format(rounded_time)
+                
+                print(f"• {prayer}: {original_time} → {rounded_time} ({rounded_12hr})")
+        
+        print("-" * 50)
+        print()
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Quarter-hour test failed: {e}")
+        return False
+
 def test_timezone_conversion():
     """Test timezone conversion functionality."""
     print("\n🕐 TESTING TIMEZONE CONVERSION:")
@@ -253,16 +373,20 @@ def main():
     # Test 2: Asr comparison
     success2 = display_asr_comparison()
     
-    # Test 3: Timezone conversion
-    success3 = test_timezone_conversion()
+    # Test 3: Quarter-hour rounding test
+    success3 = test_quarter_hour_rounding()
+    
+    # Test 4: Timezone conversion
+    success4 = test_timezone_conversion()
     
     print("\n" + "=" * 70)
-    if success1 and success2 and success3:
+    if success1 and success2 and success3 and success4:
         print("✅ All tests completed successfully!")
         print("\n📋 Summary:")
         print("• Prayer times are fetched from AlAdhan API")
         print("• Times are displayed in both 24-hour and 12-hour formats")
         print("• Hanafi vs Shafi Asr comparison is available")
+        print("• Quarter-hour rounding for Asr & Isha is tested")
         print("• Timezone handling is working correctly")
         print("• University of Islamic Sciences, Karachi method is being used")
         print("\n💡 Configuration Options:")

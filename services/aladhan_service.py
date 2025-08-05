@@ -1,4 +1,5 @@
 import requests
+import logging
 from datetime import date
 import config
 
@@ -13,6 +14,7 @@ def fetch_prayer_times(method=None, school=None):
                 - 0: Shafi (standard)
                 - 1: Hanafi
     """
+    log = logging.getLogger(__name__)
     today_str = date.today().strftime("%d-%m-%Y")
     url = f"http://api.aladhan.com/v1/timings/{today_str}"
     params = {
@@ -23,26 +25,26 @@ def fetch_prayer_times(method=None, school=None):
     }
     
     try:
-        print(f"Attempting to fetch prayer times from AlAdhan API...")
+        log.info(f"Attempting to fetch prayer times from AlAdhan API...")
         if method is not None:
-            print(f"Using calculation method: {method}")
+            log.info(f"Using calculation method: {method}")
         else:
-            print(f"Using calculation method: {config.METHOD}")
+            log.info(f"Using calculation method: {config.METHOD}")
         
         school_name = "Hanafi" if params["school"] == 1 else "Shafi"
-        print(f"Using {school_name} school")
+        log.info(f"Using {school_name} school")
         
         response = requests.get(url, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
         if data.get('code') == 200:
-            print("Successfully fetched prayer times.")
+            log.info("Successfully fetched prayer times.")
             return data['data']['timings']
         else:
-            print(f"API Error: {data.get('status', 'Unknown error')}")
+            log.error(f"API Error: {data.get('status', 'Unknown error')}")
             return None
     except requests.exceptions.RequestException as e:
-        print(f"Connection Error fetching prayer times: {e}")
+        log.error(f"Connection Error fetching prayer times: {e}")
         return None
 
 def fetch_prayer_times_comparison():
@@ -50,7 +52,8 @@ def fetch_prayer_times_comparison():
     Fetches prayer times using both Shafi and Hanafi methods for comparison.
     Returns a dictionary with both sets of timings.
     """
-    print("Fetching prayer times for comparison (Shafi vs Hanafi)...")
+    log = logging.getLogger(__name__)
+    log.info("Fetching prayer times for comparison (Shafi vs Hanafi)...")
     
     # Fetch with Shafi method (school=0)
     shafi_timings = fetch_prayer_times(school=0)

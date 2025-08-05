@@ -1,4 +1,5 @@
 import requests
+import logging
 import config
 from datetime import datetime
 
@@ -15,6 +16,7 @@ def convert_to_12_hour_format(time_str):
 
 def send_reminder_message(prayer_name, prayer_time, message, verse, next_prayer):
     """Formats and sends a prayer reminder to Slack."""
+    log = logging.getLogger(__name__)
     url = "https://slack.com/api/chat.postMessage"
     headers = {
         "Authorization": f"Bearer {config.SLACK_BOT_TOKEN}",
@@ -72,15 +74,15 @@ def send_reminder_message(prayer_name, prayer_time, message, verse, next_prayer)
     }
 
     try:
-        print(f"Attempting to send {prayer_name} reminder to Slack...")
+        log.info(f"Attempting to send {prayer_name} reminder to Slack...")
         response = requests.post(url, headers=headers, json=payload)
         response_data = response.json()
         if response_data.get("ok"):
-            print(f"✅ Success! {prayer_name} reminder sent.")
+            log.info(f"✅ Success! {prayer_name} reminder sent.")
             return True
         else:
-            print(f"❌ Error sending message to Slack: {response_data.get('error')}")
+            log.error(f"❌ Error sending message to Slack: {response_data.get('error')}")
             return False
     except requests.exceptions.RequestException as e:
-        print(f"Connection Error sending to Slack: {e}")
+        log.error(f"Connection Error sending to Slack: {e}")
         return False 
