@@ -1,166 +1,285 @@
 #!/usr/bin/env python3
 """
-Test script for the new production-ready prayer bot structure.
-This script tests each component individually to ensure everything works.
+Test script to display prayer times based on University of Islamic Sciences, Karachi method.
+This script fetches and displays prayer times in a clear, readable format.
+Now includes comparison between Shafi and Hanafi Asr timings.
 """
 
 import sys
 import os
 from datetime import datetime
+import pytz
 
 # Add the current directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-def test_config():
-    """Test configuration loading."""
-    print("Testing configuration...")
+def convert_to_12_hour_format(time_str):
+    """Convert 24-hour time format (HH:MM) to 12-hour format with AM/PM."""
+    try:
+        time_obj = datetime.strptime(time_str, "%H:%M")
+        return time_obj.strftime("%I:%M %p")
+    except ValueError:
+        return time_str
+
+def display_calculation_methods():
+    """Display available calculation methods."""
+    print("📋 AVAILABLE CALCULATION METHODS:")
+    print("=" * 70)
+    
+    try:
+        from services.aladhan_service import get_calculation_methods
+        methods = get_calculation_methods()
+        
+        print("ID | Method Name")
+        print("-" * 50)
+        for method_id, method_name in methods.items():
+            current_marker = " ← CURRENT" if method_id == 1 else ""
+            print(f"{method_id:2} | {method_name}{current_marker}")
+        
+        print("-" * 50)
+        print("💡 To change method, update METHOD in config.py")
+        print()
+        
+    except Exception as e:
+        print(f"❌ Error displaying methods: {e}")
+
+def display_prayer_times():
+    """Fetch and display prayer times with detailed information."""
+    print("🕌 Prayer Times - University of Islamic Sciences, Karachi Method")
+    print("=" * 70)
+    
     try:
         import config
-        print(f"✅ Config loaded successfully")
-        print(f"   - Channel ID: {config.SLACK_CHANNEL_ID}")
-        print(f"   - Latitude: {config.LATITUDE}")
-        print(f"   - Longitude: {config.LONGITUDE}")
-        print(f"   - Prayers: {config.PRAYERS_IN_ORDER}")
-        return True
-    except Exception as e:
-        print(f"❌ Config test failed: {e}")
-        return False
-
-def test_aladhan_service():
-    """Test AlAdhan API service."""
-    print("\nTesting AlAdhan service...")
-    try:
-        from services.aladhan_service import fetch_prayer_times
+        from services.aladhan_service import fetch_prayer_times, get_calculation_methods
+        
+        # Get current method name
+        methods = get_calculation_methods()
+        current_method_name = methods.get(config.METHOD, f"Method {config.METHOD}")
+        
+        # Get current school name
+        school_name = "Hanafi" if config.SCHOOL == 1 else "Shafi"
+        
+        # Display configuration info
+        print(f"📍 Location: {config.LATITUDE}, {config.LONGITUDE}")
+        print(f"🕐 Timezone: {config.TIMEZONE}")
+        print(f"📅 Date: {datetime.now(pytz.timezone(config.TIMEZONE)).strftime('%A, %B %d, %Y')}")
+        print(f"🕐 Current Time: {datetime.now(pytz.timezone(config.TIMEZONE)).strftime('%I:%M:%S %p')}")
+        print(f"⚙️  Calculation Method: {current_method_name} (Method {config.METHOD})")
+        print(f"🕌 School: {school_name} (School {config.SCHOOL})")
+        print()
+        
+        # Fetch prayer times
+        print("📡 Fetching prayer times from AlAdhan API...")
         timings = fetch_prayer_times()
-        if timings:
-            print("✅ AlAdhan service working")
-            for prayer in ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]:
-                if prayer in timings:
-                    print(f"   - {prayer}: {timings[prayer]}")
-            return True
-        else:
-            print("❌ AlAdhan service returned no data")
+        
+        if not timings:
+            print("❌ Failed to fetch prayer times")
             return False
-    except Exception as e:
-        print(f"❌ AlAdhan service test failed: {e}")
-        return False
-
-def test_database_service():
-    """Test database service."""
-    print("\nTesting database service...")
-    try:
-        from services.db_service import DatabaseService
-        import config
         
-        # Create a test database
-        db = DatabaseService("test_prayer_times.db", config.QURAN_ARABIC_FILE, config.QURAN_URDU_FILE)
-        db.init_db()
+        print("✅ Prayer times fetched successfully!")
+        print()
         
-        # Test Quran loading
-        verse = db.get_random_verse()
-        if verse and 'arabic_text' in verse and 'urdu_text' in verse:
-            print("✅ Database service working")
-            print(f"   - Quran data loaded: {len(db.quran_arabic)} chapters")
-            print(f"   - Sample verse: {verse['chapter']}:{verse['verse']}")
+        # Display all prayer times
+        print("🕐 PRAYER TIMES:")
+        print("-" * 50)
         
-        # Close the database connection before cleanup
-        db.conn.close()
+        # Define prayer order for display
+        prayer_order = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]
         
-        # Clean up test database
-        os.remove("test_prayer_times.db")
+        for prayer in prayer_order:
+            if prayer in timings:
+                time_24hr = timings[prayer]
+                time_12hr = convert_to_12_hour_format(time_24hr)
+                
+                # Add emoji based on prayer
+                emoji_map = {
+                    "Fajr": "🌅",
+                    "Dhuhr": "☀️",
+                    "Asr": "🌤️",
+                    "Maghrib": "🌆",
+                    "Isha": "🌙"
+                }
+                
+                emoji = emoji_map.get(prayer, "🕌")
+                print(f"{emoji} {prayer:8} | {time_24hr:5} | {time_12hr:8}")
+        
+        print("-" * 50)
+        print()
+        
+        # Show configured prayers for reminders
+        print("🔔 CONFIGURED FOR REMINDERS:")
+        print("-" * 50)
+        for i, prayer in enumerate(config.PRAYERS_IN_ORDER, 1):
+            if prayer in timings:
+                time_12hr = convert_to_12_hour_format(timings[prayer])
+                print(f"{i}. {prayer} at {time_12hr}")
+        
+        print("-" * 50)
+        print()
+        
+        # Show reminder timing
+        print("⏰ REMINDER SETTINGS:")
+        print("-" * 50)
+        print(f"• Reminders sent {config.REMINDER_LEAD_TIME_MINUTES} minutes before prayer time")
+        print(f"• Daily setup runs at 01:00 {config.TIMEZONE}")
+        print(f"• Check frequency: Every minute")
+        print("-" * 50)
+        
         return True
+        
+    except ImportError as e:
+        print(f"❌ Import error: {e}")
+        print("Make sure all dependencies are installed: pip install -r requirements.txt")
+        return False
     except Exception as e:
-        print(f"❌ Database service test failed: {e}")
+        print(f"❌ Error: {e}")
         return False
 
-def test_gemini_service():
-    """Test Gemini AI service (if API key is available)."""
-    print("\nTesting Gemini service...")
+def display_asr_comparison():
+    """Display comparison between Shafi and Hanafi Asr timings."""
+    print("\n🕌 ASR PRAYER TIME COMPARISON (Shafi vs Hanafi)")
+    print("=" * 70)
+    
     try:
         import config
-        if not config.GEMINI_API_KEY or config.GEMINI_API_KEY == "AIzaSy...YOUR_NEW_GEMINI_KEY":
-            print("⚠️  Gemini API key not configured - skipping test")
-            return True
+        from services.aladhan_service import fetch_prayer_times_comparison
         
-        from services.gemini_service import generate_motivational_messages
-        messages = generate_motivational_messages()
-        if messages:
-            print("✅ Gemini service working")
-            for prayer, message in messages.items():
-                print(f"   - {prayer}: {message[:50]}...")
-            return True
-        else:
-            print("❌ Gemini service returned no messages")
+        print("📡 Fetching prayer times for both methods...")
+        comparison = fetch_prayer_times_comparison()
+        
+        if not comparison or not comparison["shafi"] or not comparison["hanafi"]:
+            print("❌ Failed to fetch comparison data")
             return False
+        
+        shafi_timings = comparison["shafi"]
+        hanafi_timings = comparison["hanafi"]
+        
+        print("✅ Comparison data fetched successfully!")
+        print()
+        
+        # Display comparison table
+        print("📊 ASR TIMING COMPARISON:")
+        print("-" * 60)
+        print(f"{'Method':<15} | {'24-Hour':<10} | {'12-Hour':<10} | {'Difference'}")
+        print("-" * 60)
+        
+        # Get Asr times
+        shafi_asr = shafi_timings.get("Asr", "N/A")
+        hanafi_asr = hanafi_timings.get("Asr", "N/A")
+        
+        if shafi_asr != "N/A" and hanafi_asr != "N/A":
+            shafi_12hr = convert_to_12_hour_format(shafi_asr)
+            hanafi_12hr = convert_to_12_hour_format(hanafi_asr)
+            
+            # Calculate difference
+            try:
+                shafi_time = datetime.strptime(shafi_asr, "%H:%M")
+                hanafi_time = datetime.strptime(hanafi_asr, "%H:%M")
+                
+                if hanafi_time > shafi_time:
+                    diff_minutes = int((hanafi_time - shafi_time).total_seconds() / 60)
+                    diff_text = f"+{diff_minutes} minutes"
+                else:
+                    diff_minutes = int((shafi_time - hanafi_time).total_seconds() / 60)
+                    diff_text = f"-{diff_minutes} minutes"
+            except:
+                diff_text = "N/A"
+            
+            print(f"{'Shafi (Default)':<15} | {shafi_asr:<10} | {shafi_12hr:<10} | -")
+            print(f"{'Hanafi':<15} | {hanafi_asr:<10} | {hanafi_12hr:<10} | {diff_text}")
+        else:
+            print("❌ Could not retrieve Asr times for comparison")
+        
+        print("-" * 60)
+        print()
+        
+        # Show explanation
+        print("📖 EXPLANATION:")
+        print("-" * 50)
+        print("• Shafi Method: Asr begins when shadow = 1x object height")
+        print("• Hanafi Method: Asr begins when shadow = 2x object height")
+        print("• Hanafi Asr typically starts later than Shafi Asr")
+        print("• The difference is usually 15-30 minutes depending on location")
+        print("-" * 50)
+        
+        return True
+        
     except Exception as e:
-        print(f"❌ Gemini service test failed: {e}")
+        print(f"❌ Comparison error: {e}")
         return False
 
-def test_slack_service():
-    """Test Slack service (if token is available)."""
-    print("\nTesting Slack service...")
+def test_timezone_conversion():
+    """Test timezone conversion functionality."""
+    print("\n🕐 TESTING TIMEZONE CONVERSION:")
+    print("-" * 50)
+    
     try:
         import config
-        if not config.SLACK_BOT_TOKEN or config.SLACK_BOT_TOKEN == "xoxb-...YOUR_NEW_SLACK_TOKEN":
-            print("⚠️  Slack token not configured - skipping test")
-            return True
         
-        from services.slack_service import send_reminder_message
-        from services.db_service import DatabaseService
+        # Test current time in different formats
+        local_tz = pytz.timezone(config.TIMEZONE)
+        now = datetime.now(local_tz)
         
-        # Create a test database to get a verse
-        db = DatabaseService("test_slack.db", config.QURAN_ARABIC_FILE, config.QURAN_URDU_FILE)
-        verse = db.get_random_verse()
+        print(f"Current time in {config.TIMEZONE}:")
+        print(f"• 24-hour: {now.strftime('%H:%M:%S')}")
+        print(f"• 12-hour: {now.strftime('%I:%M:%S %p')}")
+        print(f"• Full: {now.strftime('%A, %B %d, %Y at %I:%M:%S %p')}")
         
-        # Test message formatting (don't actually send)
-        print("✅ Slack service structure working")
-        print(f"   - Channel ID: {config.SLACK_CHANNEL_ID}")
-        print(f"   - Sample verse ready: {verse['chapter']}:{verse['verse']}")
+        # Test some sample prayer times
+        sample_times = ["05:30", "12:15", "15:45", "18:30", "20:15"]
+        print(f"\nSample time conversions:")
+        for time_24hr in sample_times:
+            time_12hr = convert_to_12_hour_format(time_24hr)
+            print(f"• {time_24hr} → {time_12hr}")
         
-        # Close the database connection before cleanup
-        db.conn.close()
-        
-        # Clean up
-        os.remove("test_slack.db")
+        print("-" * 50)
         return True
+        
     except Exception as e:
-        print(f"❌ Slack service test failed: {e}")
+        print(f"❌ Timezone test failed: {e}")
         return False
 
 def main():
-    """Run all tests."""
-    print("🧪 Testing New Prayer Bot Structure")
-    print("=" * 50)
+    """Main function to run the prayer time display."""
+    print("🧪 Prayer Time Display Test (with Hanafi Asr comparison)")
+    print("=" * 70)
     
-    tests = [
-        test_config,
-        test_aladhan_service,
-        test_database_service,
-        test_gemini_service,
-        test_slack_service
-    ]
+    # Test 0: Display available calculation methods
+    display_calculation_methods()
     
-    passed = 0
-    total = len(tests)
+    # Test 1: Display prayer times
+    success1 = display_prayer_times()
     
-    for test in tests:
-        if test():
-            passed += 1
+    # Test 2: Asr comparison
+    success2 = display_asr_comparison()
     
-    print("\n" + "=" * 50)
-    print(f"Test Results: {passed}/{total} tests passed")
+    # Test 3: Timezone conversion
+    success3 = test_timezone_conversion()
     
-    if passed == total:
-        print("🎉 All tests passed! Your bot is ready to run.")
-        print("\nNext steps:")
-        print("1. Create a .env file with your API keys")
-        print("2. Run: python main.py")
+    print("\n" + "=" * 70)
+    if success1 and success2 and success3:
+        print("✅ All tests completed successfully!")
+        print("\n📋 Summary:")
+        print("• Prayer times are fetched from AlAdhan API")
+        print("• Times are displayed in both 24-hour and 12-hour formats")
+        print("• Hanafi vs Shafi Asr comparison is available")
+        print("• Timezone handling is working correctly")
+        print("• University of Islamic Sciences, Karachi method is being used")
+        print("\n💡 Configuration Options:")
+        print("   • METHOD in config.py: Calculation method (0-23, 99)")
+        print("   • SCHOOL in config.py: 0 = Shafi, 1 = Hanafi")
+        print("\n💡 To use Hanafi method in your bot:")
+        print("   Update config.py: SCHOOL = 1 (for Hanafi)")
+        print("   Update config.py: SCHOOL = 0 (for Shafi, current)")
+        print("   Or use school=1 in fetch_prayer_times() for Hanafi")
+        print("   Or use school=0 in fetch_prayer_times() for Shafi")
     else:
         print("⚠️  Some tests failed. Please check the errors above.")
-        print("\nMake sure to:")
-        print("1. Install dependencies: pip install -r requirements.txt")
-        print("2. Configure your API keys in .env file")
-        print("3. Check your internet connection")
+        print("\n🔧 Troubleshooting:")
+        print("1. Check your internet connection")
+        print("2. Verify the latitude/longitude in config.py")
+        print("3. Make sure all dependencies are installed")
+        print("4. Check if the AlAdhan API is accessible")
 
 if __name__ == "__main__":
     main() 

@@ -18,6 +18,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 LATITUDE = 33.5210681
 LONGITUDE = 73.1578097
 METHOD = 1 # University of Islamic Sciences, Karachi
+SCHOOL = 1 # 0 = Shafi (standard), 1 = Hanafi
 
 # --- Bot Configuration ---
 # The order is important for determining the "next" prayer
