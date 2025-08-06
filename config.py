@@ -22,7 +22,7 @@ SCHOOL = 1 # 0 = Shafi (standard), 1 = Hanafi
 
 # --- Bot Configuration ---
 # The order is important for determining the "next" prayer
-PRAYERS_IN_ORDER = ["Asr", "Maghrib", "Isha"]
+PRAYERS_IN_ORDER = ["Dhuhr", "Asr", "Maghrib", "Isha"]
 REMINDER_LEAD_TIME_MINUTES = 3 # Send reminder 10 minutes before prayer
 DATABASE_FILE = "prayer_times.db"
 QURAN_ARABIC_FILE = "data/quran.json"

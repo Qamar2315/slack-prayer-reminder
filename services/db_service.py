@@ -95,10 +95,18 @@ class DatabaseService:
         
         for prayer in config.PRAYERS_IN_ORDER:
             message = messages.get(prayer, config.DEFAULT_MESSAGES.get(prayer, f"Time for {prayer} prayer."))
+            
+            # Use fixed time for Dhuhr (13:30)
+            if prayer == "Dhuhr":
+                prayer_time = "13:30"
+                self.log.info(f"Using fixed time for {prayer}: {prayer_time}")
+            else:
+                prayer_time = rounded_timings[prayer]
+            
             cursor.execute('''
                 INSERT INTO daily_prayers (prayer_name, prayer_time, reminder_message, reminder_sent)
                 VALUES (?, ?, ?, 0)
-            ''', (prayer, rounded_timings[prayer], message))
+            ''', (prayer, prayer_time, message))
         
         self.conn.commit()
         self.log.info("Saved new prayer times and messages for the day.")

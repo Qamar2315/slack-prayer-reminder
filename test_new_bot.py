@@ -110,7 +110,11 @@ def display_prayer_times():
         print("🔔 CONFIGURED FOR REMINDERS:")
         print("-" * 50)
         for i, prayer in enumerate(config.PRAYERS_IN_ORDER, 1):
-            if prayer in timings:
+            if prayer == "Dhuhr":
+                # Dhuhr has fixed time of 13:30
+                time_12hr = convert_to_12_hour_format("13:30")
+                print(f"{i}. {prayer} at {time_12hr} (Fixed time)")
+            elif prayer in timings:
                 time_12hr = convert_to_12_hour_format(timings[prayer])
                 print(f"{i}. {prayer} at {time_12hr}")
         
@@ -323,6 +327,9 @@ def test_quarter_hour_rounding():
         # Show what would be saved to database
         print("💾 DATABASE SAVE PREVIEW:")
         print("-" * 50)
+        # Show Dhuhr with fixed time
+        print(f"• Dhuhr: Fixed time → 13:30 ({convert_to_12_hour_format('13:30')})")
+        
         for prayer in ["Asr", "Isha"]:
             if prayer in timings:
                 original_time = timings[prayer]
@@ -399,6 +406,7 @@ def main():
         print("• Times are displayed in both 24-hour and 12-hour formats")
         print("• Hanafi vs Shafi Asr comparison is available")
         print("• Quarter-hour rounding for Asr & Isha is tested (always next quarter)")
+        print("• Dhuhr prayer uses fixed time of 1:30 PM (13:30)")
         print("• Timezone handling is working correctly")
         print("• University of Islamic Sciences, Karachi method is being used")
         print("\n💡 Configuration Options:")
