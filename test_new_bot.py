@@ -209,7 +209,7 @@ def display_asr_comparison():
         return False
 
 def round_to_quarter_hour(time_str):
-    """Round time to nearest quarter hour (00, 15, 30, 45 minutes)."""
+    """Round time to next quarter hour (00, 15, 30, 45 minutes). Always rounds up."""
     try:
         # Parse the time string (e.g., "09:05")
         time_obj = datetime.strptime(time_str, "%H:%M")
@@ -217,8 +217,19 @@ def round_to_quarter_hour(time_str):
         # Get total minutes since midnight
         total_minutes = time_obj.hour * 60 + time_obj.minute
         
-        # Round to nearest quarter hour (15 minutes)
-        rounded_minutes = round(total_minutes / 15) * 15
+        # Calculate which quarter we're in (0, 1, 2, 3 for each 15-minute block)
+        current_quarter = total_minutes // 15
+        
+        # If we're not exactly on a quarter boundary, move to the next quarter
+        if total_minutes % 15 != 0:
+            current_quarter += 1
+        
+        # Convert back to total minutes
+        rounded_minutes = current_quarter * 15
+        
+        # Handle case where we go past midnight (shouldn't happen with prayer times)
+        if rounded_minutes >= 1440:  # 24 hours * 60 minutes
+            rounded_minutes = 0
         
         # Convert back to hours and minutes
         hours = rounded_minutes // 60
@@ -230,8 +241,8 @@ def round_to_quarter_hour(time_str):
         return time_str
 
 def test_quarter_hour_rounding():
-    """Test quarter-hour rounding for Asr and Isha prayer times."""
-    print("\n⏰ QUARTER-HOUR ROUNDING TEST (Asr & Isha)")
+    """Test quarter-hour rounding for Asr and Isha prayer times. Always rounds up to next quarter."""
+    print("\n⏰ QUARTER-HOUR ROUNDING TEST (Asr & Isha) - Always Next Quarter")
     print("=" * 70)
     
     try:
@@ -267,30 +278,30 @@ def test_quarter_hour_rounding():
         print()
         
         # Test with sample times to show the rounding logic
-        print("🧪 SAMPLE ROUNDING EXAMPLES:")
+        print("🧪 SAMPLE ROUNDING EXAMPLES (Always Next Quarter):")
         print("-" * 60)
         print(f"{'Original':<10} | {'Rounded':<10} | {'12-Hour':<10} | {'Logic'}")
         print("-" * 60)
         
         sample_times = [
-            "09:05",   # Should round to 09:00
-            "09:07",   # Should round to 09:00
-            "09:08",   # Should round to 09:15
-            "09:22",   # Should round to 09:15
-            "09:23",   # Should round to 09:30
-            "09:37",   # Should round to 09:30
-            "09:38",   # Should round to 09:45
-            "09:52",   # Should round to 09:45
-            "09:53",   # Should round to 10:00
-            "15:44",   # Should round to 15:45
-            "15:46",   # Should round to 15:45
-            "15:47",   # Should round to 15:45
-            "15:48",   # Should round to 15:45
-            "15:49",   # Should round to 15:45
-            "15:50",   # Should round to 15:45
-            "15:51",   # Should round to 15:45
-            "15:52",   # Should round to 15:45
-            "15:53",   # Should round to 16:00
+            "09:05",   # Should round to 09:15 (next quarter)
+            "09:07",   # Should round to 09:15 (next quarter)
+            "09:08",   # Should round to 09:15 (next quarter)
+            "09:22",   # Should round to 09:30 (next quarter)
+            "09:23",   # Should round to 09:30 (next quarter)
+            "09:37",   # Should round to 09:45 (next quarter)
+            "09:38",   # Should round to 09:45 (next quarter)
+            "09:52",   # Should round to 10:00 (next quarter)
+            "09:53",   # Should round to 10:00 (next quarter)
+            "15:44",   # Should round to 15:45 (next quarter)
+            "15:46",   # Should round to 16:00 (next quarter)
+            "15:47",   # Should round to 16:00 (next quarter)
+            "15:48",   # Should round to 16:00 (next quarter)
+            "15:49",   # Should round to 16:00 (next quarter)
+            "15:50",   # Should round to 16:00 (next quarter)
+            "15:51",   # Should round to 16:00 (next quarter)
+            "15:52",   # Should round to 16:00 (next quarter)
+            "15:53",   # Should round to 16:00 (next quarter)
         ]
         
         for time_str in sample_times:
@@ -300,8 +311,9 @@ def test_quarter_hour_rounding():
             # Explain the logic
             time_obj = datetime.strptime(time_str, "%H:%M")
             total_minutes = time_obj.hour * 60 + time_obj.minute
-            quarter = round(total_minutes / 15)
-            logic = f"({total_minutes}min → {quarter} quarters)"
+            current_quarter = total_minutes // 15
+            next_quarter = current_quarter + 1 if total_minutes % 15 != 0 else current_quarter
+            logic = f"({total_minutes}min → {next_quarter} quarters)"
             
             print(f"{time_str:<10} | {rounded:<10} | {rounded_12hr:<10} | {logic}")
         
@@ -386,7 +398,7 @@ def main():
         print("• Prayer times are fetched from AlAdhan API")
         print("• Times are displayed in both 24-hour and 12-hour formats")
         print("• Hanafi vs Shafi Asr comparison is available")
-        print("• Quarter-hour rounding for Asr & Isha is tested")
+        print("• Quarter-hour rounding for Asr & Isha is tested (always next quarter)")
         print("• Timezone handling is working correctly")
         print("• University of Islamic Sciences, Karachi method is being used")
         print("\n💡 Configuration Options:")

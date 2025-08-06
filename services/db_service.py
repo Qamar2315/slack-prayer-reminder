@@ -25,7 +25,7 @@ class DatabaseService:
         self.log.info("Quran data loaded successfully.")
 
     def _round_to_quarter_hour(self, time_str):
-        """Round time to nearest quarter hour (00, 15, 30, 45 minutes)."""
+        """Round time to next quarter hour (00, 15, 30, 45 minutes). Always rounds up."""
         try:
             # Parse the time string (e.g., "09:05")
             time_obj = datetime.strptime(time_str, "%H:%M")
@@ -33,8 +33,19 @@ class DatabaseService:
             # Get total minutes since midnight
             total_minutes = time_obj.hour * 60 + time_obj.minute
             
-            # Round to nearest quarter hour (15 minutes)
-            rounded_minutes = round(total_minutes / 15) * 15
+            # Calculate which quarter we're in (0, 1, 2, 3 for each 15-minute block)
+            current_quarter = total_minutes // 15
+            
+            # If we're not exactly on a quarter boundary, move to the next quarter
+            if total_minutes % 15 != 0:
+                current_quarter += 1
+            
+            # Convert back to total minutes
+            rounded_minutes = current_quarter * 15
+            
+            # Handle case where we go past midnight (shouldn't happen with prayer times)
+            if rounded_minutes >= 1440:  # 24 hours * 60 minutes
+                rounded_minutes = 0
             
             # Convert back to hours and minutes
             hours = rounded_minutes // 60
@@ -46,7 +57,7 @@ class DatabaseService:
             return time_str
 
     def _apply_quarter_hour_rounding(self, timings):
-        """Apply quarter-hour rounding to Asr and Isha prayer times."""
+        """Apply quarter-hour rounding to Asr and Isha prayer times. Always rounds up to next quarter."""
         rounded_timings = timings.copy()
         
         # Apply rounding only to Asr and Isha
@@ -55,7 +66,7 @@ class DatabaseService:
                 original_time = rounded_timings[prayer]
                 rounded_time = self._round_to_quarter_hour(original_time)
                 rounded_timings[prayer] = rounded_time
-                self.log.info(f"Rounded {prayer} time: {original_time} → {rounded_time}")
+                self.log.info(f"Rounded {prayer} time: {original_time} → {rounded_time} (next quarter)")
         
         return rounded_timings
 
